@@ -670,7 +670,9 @@ public:
 
 		//NODE_SET_PROTOTYPE_METHOD(t, "close", close);
 		NODE_SET_PROTOTYPE_METHOD(t, "canSendType", canSendType);
-		
+
+                NODE_SET_PROTOTYPE_METHOD(t, "addMatch", addMatch);
+
 		NODE_SET_PROTOTYPE_METHOD(t, "addFilter", addFilter);
 		//NODE_SET_PROTOTYPE_METHOD(t, "removeFilter", removeFilter);
 
@@ -864,7 +866,15 @@ public:
 		return scope.Close(object);
 	}
 
-	
+	static Handle<Value> addMatch(const Arguments &args) {
+		REQ_STR_ARG(0, path);
+		DBusConnectionWrap* connection = THIS_CONNECTION(args);
+
+		dbus_bus_add_match(*connection, path, NULL);
+
+		return Undefined();
+	};
+
 
 	static void freeConnectionCallbackBaton(void* data) {
 		//delete (ConnectionCallbackBaton*)data;
