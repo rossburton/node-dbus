@@ -232,9 +232,14 @@ public:
 			return result;
 		}
 			
-		case DBUS_TYPE_DICT_ENTRY: 		
-		case DBUS_TYPE_INVALID: 
-		default: 
+		case DBUS_TYPE_DICT_ENTRY:
+		case DBUS_TYPE_INVALID:
+			//should return 'undefined' object
+			return Undefined();
+		default:
+			fprintf(stderr, "%s: Found unexpected type '%c'\n",
+				__PRETTY_FUNCTION__,
+				dbus_message_iter_get_arg_type(iter));
 			//should return 'undefined' object
 			return Undefined();
 		  
