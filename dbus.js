@@ -63,27 +63,18 @@ function DBusObject(bus, path) {
 	this.introspection = undefined;
 	var self = this;
 
-	//Call the C++ code to register the object path and appropriate callback
-	bus.backend.registerObjectPath(path, (function(message) {
-		//Look at the type of message
-		switch(message.type) {
-		case dbus.DBUS_MESSAGE_TYPE_SIGNAL: //If it's a signal
+	//Call the C++ code to register a filter for incoming signals
+	bus.backend.addFilter((function(message) {
+		if (message.type == dbus.DBUS_MESSAGE_TYPE_SIGNAL) { //If it's a signal
+			/* TODO: filter for ones we care about */
 			//Emit it
 			var args = [(message.interface+"."+message.member).toLowerCase()];
 			Array.prototype.push.apply(args, message.arguments);
 			this.emit.apply(this, args);
-			
-			break;
-		case dbus.DBUS_MESSAGE_TYPE_ERROR:
-
-			this.emit("error");
-		default:
-			break;
+			// TODO? delete message;
 		}
-		delete message;
-		
-	}).bind(this))
-
+		return dbus.HANDLER_RESULT_NOT_YET_HANDLED;
+	}).bind(this));
 }
 util.inherits(DBusObject, EventEmitter);
 
@@ -222,6 +213,14 @@ util.inherits(DBusProxy, EventEmitter)
 
 DBusProxy.prototype.on = function(method, listener) {
 	var self = this, event = (this.interfaceName+"."+method).toLowerCase();
+
+	/* "ready" is special, everything else is a DBus signal */
+	if (method != "ready") {
+		var rule = util.format("type='signal',interface='%s',member='%s'",
+					this.interfaceName,
+				       method);
+		this.bus.backend.addMatch(rule);
+	}
 
 	this.object.on(event, function() {
 		var args = [method];
