@@ -19,6 +19,8 @@ function DBus(bus, destination) {
 	case "object":
 		this.backend = bus;
 		break;
+	default:
+		throw new Error("Unhandled bus type " + typeof bus);
 	}
 	
 	this.destination = destination;
