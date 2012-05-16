@@ -188,18 +188,22 @@ public:
 		case DBUS_TYPE_ARRAY:
 		case DBUS_TYPE_STRUCT:
 		{
+			Local<Object> resultArray;
 			DBusMessageIter internal_iter, internal_temp_iter;
 			int count = 0;         
 
-			//count the size of the array
 			dbus_message_iter_recurse(iter, &internal_temp_iter);
-			count = dbus_messages_iter_size(&internal_temp_iter);
 
-			//create the result object
-			Local<Array> resultArray = Array::New(count);
-			count = 0;
+			// Look at the first type to see if we've a dictionary or an array
+                        if (dbus_message_iter_get_arg_type(&internal_temp_iter) == DBUS_TYPE_DICT_ENTRY) {
+                          resultArray = Object::New();
+                        } else {
+                          count = dbus_messages_iter_size(&internal_temp_iter);
+                          resultArray = Array::New(count);
+                          count = 0;
+                        }
+
 			dbus_message_iter_recurse(iter, &internal_iter);
-
 			do {
 				//this is dict entry
 				if (dbus_message_iter_get_arg_type(&internal_iter)  == DBUS_TYPE_DICT_ENTRY) {
