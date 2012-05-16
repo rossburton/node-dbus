@@ -24,11 +24,6 @@ function DBus(bus, destination) {
 	}
 	
 	this.destination = destination;
-
-	var self = this;
-	process.on("exit", function() {
-		self.close();
-	})
 }
 
 
