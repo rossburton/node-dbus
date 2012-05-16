@@ -174,7 +174,10 @@ public:
 		case DBUS_TYPE_INT32:
 		case DBUS_TYPE_UINT32:
 		case DBUS_TYPE_INT64:
-		case DBUS_TYPE_UINT64: 
+		case DBUS_TYPE_UINT64:
+		case DBUS_TYPE_UNIX_FD:
+			/* The FD decoding is untested, but it should be
+                         * possible to open a Stream from a fd somehow right? */
 			return decodeInteger(iter);
 		
 		case DBUS_TYPE_DOUBLE:
@@ -235,7 +238,7 @@ public:
 			Handle<Value> result = decode(&internal_iter);
 			return result;
 		}
-			
+
 		case DBUS_TYPE_DICT_ENTRY:
 		case DBUS_TYPE_INVALID:
 			//should return 'undefined' object
@@ -1179,4 +1182,3 @@ extern "C" {
 
 	NODE_MODULE(dbus, init)
 }
-	
