@@ -72,6 +72,8 @@ public:
 		NODE_SET_METHOD(target, "signal", signal);
 		NODE_SET_METHOD(target, "error", error);
 
+		NODE_SET_PROTOTYPE_METHOD(t, "isMethodCall", isMethodCall);
+
 		NODE_SET_GETTER(t, "serial", serial);
 		NODE_SET_GETTER(t, "type", type);
 		NODE_SET_GETTER(t, "path", path);
@@ -124,7 +126,13 @@ public:
 		REQ_STR_ARG(2, message);
 		return finalizeMessage(dbus_message_new_error(*origin, name, message));
 	};
- 
+
+	static Handle<Value> isMethodCall(const Arguments& args) {
+		REQ_STR_ARG(0, interface);
+		REQ_STR_ARG(1, method);
+		return Boolean::New(dbus_message_is_method_call (*THIS_MESSAGE(args), interface, method));
+	};
+
 
 	static Handle<Value> serial(Local<String> property, const AccessorInfo& info) {
 		return Integer::New(dbus_message_get_serial(*THIS_MESSAGE(info)));
