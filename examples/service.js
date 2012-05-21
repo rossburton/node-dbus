@@ -3,12 +3,15 @@
 var dbus = require('com.izaakschroeder.dbus');
 var dbusC = require('../build/Release/dbus');
 var DOM = require('com.izaakschroeder.dom');
+var events = require("events");
 var util = require("util");
 
 bus = dbus.session();
 
 function ExportedObject() {
+    events.EventEmitter.call(this);
 }
+util.inherits(ExportedObject, events.EventEmitter);
 
 ExportedObject.prototype.wrap = function (iface, callback) {
     var self = this;
@@ -51,49 +54,60 @@ ExportedObject.prototype.wrap = function (iface, callback) {
 ExportedObject.prototype.register = function (path) {
     var self = this;
     bus.backend.registerObjectPath(path, function (message) {
+        /* TODO: don't special-case this but implement it properly */
         if (message.isMethodCall ("org.freedesktop.DBus.Introspectable", "Introspect")) {
-            console.log("introspected!");
-            
             var reply = dbusC.methodReturn(message);
             reply.signature = "s";
 	    reply.arguments = [self.introspection_xml];
 	    bus.backend.send(reply);
         } else {
-            console.log ("Something else " + message.interface + " " + message.member);
-
-            var method = self.introspection.interfaces[message.interface].methods[message.member];
-            /* lets pretend! */
-            ret = "Number " + message.arguments[0];
-
-            var reply = dbusC.methodReturn(message);
-            reply.signature = method.outputs.map(function(i) { return i.type }).join("");
-
-	    reply.arguments = [ret];
-	    bus.backend.send(reply);
-            
+	    var args = [message.interface + "." + message.member, message];
+	    Array.prototype.push.apply(args, message.arguments);
+            self.emit.apply(self, args);
         }
     });
 }
 
+ExportedObject.prototype.reply = function (message) {
+    var method = this.introspection.interfaces[message.interface].methods[message.member];
+    var reply = dbusC.methodReturn(message);
+
+    reply.signature = method.outputs.map(function(i) { return i.type }).join("");
+    reply.arguments = Array.prototype.slice.call(arguments, 1);
+    bus.backend.send(reply);
+}
 
 
-
+/* TODO: add node stuff? */
 const Iface = "<interface name='com.burtonini.Test'> \
-<method name='Flob'> \
-<arg name='in' direction='in' type='i'/> \
-<arg name='out' direction='out' type='s'/> \
+<method name='Stringify'> \
+ <arg name='in' direction='in' type='i'/> \
+ <arg name='out' direction='out' type='s'/> \
+</method> \
+<method name='Counter'> \
+ <arg name='out' direction='out' type='s'/> \
 </method> \
 </interface>";
 
 function Something() {
     ExportedObject.call(this);
+    this.count = 0;
+
+    this.on("com.burtonini.Test.Stringify", function (message, number) {
+        this.reply(message, "This was number " + number);
+    });
+
+    this.on("com.burtonini.Test.Counter", function (message) {
+        this.reply(message, "Call number " + (++this.count));
+    });
+    
+    /* TODO Want to do something like this
+    this.wrap(Iface, function() {
+        this.register("/");
+    });
+    */
 }
 util.inherits(Something, ExportedObject);
-
-Something.prototype.Flob = function(number) {
-    console.log("Flob!!");
-    return "Number " + number;
-};
 
 var something = new Something();
 something.wrap(Iface, function() {
