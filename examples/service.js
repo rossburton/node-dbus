@@ -8,7 +8,10 @@ var util = require("util");
 
 bus = dbus.session();
 
-function ExportedObject() {
+function ExportedObject(iface, path) {
+    this.wrap(iface, (function () {
+        this.register(path);
+    }).bind(this));
     events.EventEmitter.call(this);
 }
 util.inherits(ExportedObject, events.EventEmitter);
@@ -90,7 +93,7 @@ const Iface = "<interface name='com.burtonini.Test'> \
 </interface>";
 
 function Something() {
-    ExportedObject.call(this);
+    ExportedObject.call(this, Iface, "/");
     this.count = 0;
 
     this.on("com.burtonini.Test.Stringify", function (message, number) {
@@ -110,6 +113,3 @@ function Something() {
 util.inherits(Something, ExportedObject);
 
 var something = new Something();
-something.wrap(Iface, function() {
-    something.register("/");
-});
