@@ -6,11 +6,9 @@ var DOM = require('com.izaakschroeder.dom');
 var events = require("events");
 var util = require("util");
 
-bus = dbus.session();
-
-function ExportedObject(iface, path) {
+function ExportedObject(bus, iface, path) {
     this.wrap(iface, (function () {
-        this.register(path);
+        this.register(bus, path);
     }).bind(this));
     events.EventEmitter.call(this);
 }
@@ -18,8 +16,8 @@ util.inherits(ExportedObject, events.EventEmitter);
 
 ExportedObject.prototype.wrap = function (iface, callback) {
     var self = this;
+    this.introspection_xml = iface;
 
-    self.introspection_xml = iface;
     /* This is a copy of the introspect method in node-dbus, share it */
     /* TODO: This won't actually block, wait until the callback is done? */
     DOM.parse(iface, function(doc) {
@@ -54,7 +52,8 @@ ExportedObject.prototype.wrap = function (iface, callback) {
     });
 }
 
-ExportedObject.prototype.register = function (path) {
+ExportedObject.prototype.register = function (bus, path) {
+    this.bus = bus;
     var self = this;
     bus.backend.registerObjectPath(path, function (message) {
         /* TODO: don't special-case this but implement it properly */
@@ -62,7 +61,7 @@ ExportedObject.prototype.register = function (path) {
             var reply = dbusC.methodReturn(message);
             reply.signature = "s";
 	    reply.arguments = [self.introspection_xml];
-	    bus.backend.send(reply);
+	    self.bus.backend.send(reply);
         } else {
 	    var args = [message.interface + "." + message.member, message];
 	    Array.prototype.push.apply(args, message.arguments);
@@ -77,7 +76,7 @@ ExportedObject.prototype.reply = function (message) {
 
     reply.signature = method.outputs.map(function(i) { return i.type }).join("");
     reply.arguments = Array.prototype.slice.call(arguments, 1);
-    bus.backend.send(reply);
+    this.bus.backend.send(reply);
 }
 
 
@@ -92,8 +91,10 @@ const Iface = "<interface name='com.burtonini.Test'> \
 </method> \
 </interface>";
 
+var thebus = dbus.session();
+
 function Something() {
-    ExportedObject.call(this, Iface, "/");
+    ExportedObject.call(this, thebus, Iface, "/");
     this.count = 0;
 
     this.on("com.burtonini.Test.Stringify", function (message, number) {
