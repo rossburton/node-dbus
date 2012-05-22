@@ -37,7 +37,6 @@ DBus.get = function(bus, destination) {
 DBus.system = DBus.get.bind(undefined, DBus.SYSTEM);
 DBus.session = DBus.get.bind(undefined, DBus.SESSION);
 
-
 DBus.prototype.close = function() {
 	this.backend.close();
 }
@@ -139,6 +138,9 @@ DBusObject.prototype.as = function(interfaceName) {
 	return new DBusProxy(this, interfaceName);
 }
 
+/**
+ * DBusProxy
+ */
 function DBusProxy(object, interfaceName) {
 
 	if (typeof interfaceName !== "string")
@@ -225,16 +227,83 @@ DBusProxy.prototype.on = function(method, listener) {
 	return EventEmitter.prototype.on.apply(this, arguments);
 }
 
-module.exports = DBus;
 
+/**
+ * ExportedObject
+ * Inherit this and you can put your local object on the bus.
+ */
+DBus.ExportedObject = function(bus, iface, path) {
+    EventEmitter.call(this);
 
+    this.wrap(iface, (function () {
+        this.register(bus, path);
+    }).bind(this));
+}
+util.inherits(DBus.ExportedObject, EventEmitter);
 
+DBus.ExportedObject.prototype.wrap = function(iface, callback) {
+    var self = this;
+    this.introspection_xml = iface;
 
+    /* This is almost a copy of the introspect method in DBusObject, share it? */
+    /* TODO: This won't actually block, wait until the callback is done? */
+    DOM.parse(iface, function(doc) {
+	var res = { interfaces: { } };
+	doc.querySelectorAll("interface").forEach(function(iface) {
+	    var out = {
+		name: iface.getAttribute("name"),
+		methods: {},
+	    };
 
+            iface.querySelectorAll("method").forEach(function(method) {
+		var m = {
+		    name: method.getAttribute("name"),
+		    inputs: [ ],
+		    outputs: [ ]
+		};
 
+		method.querySelectorAll("arg[direction=in]").forEach(function(arg) {
+		    m.inputs.push({ name: arg.getAttribute("name"), type: arg.getAttribute("type") })
+		})
 
+		method.querySelectorAll("arg[direction=out]").forEach(function(arg) {
+		    m.outputs.push({ name: arg.getAttribute("name"), type: arg.getAttribute("type") })
+		})
 
+		out.methods[m.name] = m;
+	    });
+	    res.interfaces[out.name] = out;
+        });
+	self.introspection = res;
+	callback();
+    });
+}
 
+DBus.ExportedObject.prototype.register = function(bus, path) {
+    this.bus = bus;
+    var self = this;
+    bus.backend.registerObjectPath(path, function (message) {
+        /* TODO: don't special-case this but implement it properly */
+        if (message.isMethodCall ("org.freedesktop.DBus.Introspectable", "Introspect")) {
+            var reply = dbus.methodReturn(message);
+            reply.signature = "s";
+	    reply.arguments = [self.introspection_xml];
+	    self.bus.backend.send(reply);
+        } else {
+	    var args = [message.interface + "." + message.member, message];
+	    Array.prototype.push.apply(args, message.arguments);
+            self.emit.apply(self, args);
+        }
+    });
+}
 
+DBus.ExportedObject.prototype.reply = function(message) {
+    var method = this.introspection.interfaces[message.interface].methods[message.member];
+    var reply = dbus.methodReturn(message);
 
+    reply.signature = method.outputs.map(function(i) { return i.type }).join("");
+    reply.arguments = Array.prototype.slice.call(arguments, 1);
+    this.bus.backend.send(reply);
+}
 
+module.exports = DBus
