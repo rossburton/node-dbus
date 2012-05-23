@@ -78,9 +78,9 @@ DBusObject.prototype.introspect = function(callback) {
 		return this.introspection;
 
 	var self = this, message = dbus.methodCall(this.bus.destination, this.path, "org.freedesktop.DBus.Introspectable", "Introspect");
-	
-	this.bus.backend.send(message, -1, function(response) {
 
+	this.bus.backend.send(message, -1, function(response) {
+            /* TODO: error handling */
 		DOM.parse(response.arguments[0], function(doc) {
 
 			var res = { interfaces: { } };
