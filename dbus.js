@@ -55,14 +55,14 @@ function DBusObject(bus, path) {
 	this.bus = bus;
 	this.path = path;
 	this.introspection = undefined;
-	var self = this;
 
-	//Call the C++ code to register a filter for incoming signals
-	bus.backend.addFilter((function(message) {
-		if (message.type == dbus.DBUS_MESSAGE_TYPE_SIGNAL) { //If it's a signal
-			/* TODO: filter for ones we care about */
-			//Emit it
-			var args = [(message.interface+"."+message.member).toLowerCase()];
+	//Call the C++ code to register a filter for incoming signals. At this
+	//level the events are emitted using the fully qualified names because
+	//this is object-wide.
+	bus.backend.addFilter((function onFilter(message) {
+		if (message.type == dbus.DBUS_MESSAGE_TYPE_SIGNAL) {
+			/* TODO: filter for ones we care about? Is this emit layer enough? */
+			var args = [(message.interface+"."+message.member)];
 			Array.prototype.push.apply(args, message.arguments);
 			this.emit.apply(this, args);
 			// TODO? delete message;
@@ -208,23 +208,33 @@ function DBusProxy(object, interfaceName) {
 }
 util.inherits(DBusProxy, EventEmitter)
 
-DBusProxy.prototype.on = function(method, listener) {
-	var self = this, event = (this.interfaceName+"."+method).toLowerCase();
+/*
+ * As we have an implied interface, take just the member name here
+ */
+DBusProxy.prototype.on = function(event, listener) {
+	var self = this;
 
 	/* "ready" is special, everything else is a DBus signal */
-	if (method != "ready") {
-		var rule = util.format("type='signal',interface='%s',member='%s'",
-					this.interfaceName,
-				       method);
-		this.bus.backend.addMatch(rule);
-	}
+	if (event != "ready") {
+		var member = event;
+		var fullName = this.interfaceName + "." + member;
 
-	this.object.on(event, function() {
-		var args = [method];
-		Array.prototype.push.apply(args, arguments);
-		self.emit.apply(self, args);
-	})
-	return EventEmitter.prototype.on.apply(this, arguments);
+		var rule = util.format("type='signal',sender='%s',interface='%s',path='%s'",
+				       this.object.bus.destination,
+				       this.interfaceName,
+                                       this.object.path);
+		this.bus.backend.addMatch(rule);
+
+		this.object.on(fullName, function onSignal() {
+			var args = [member];
+			Array.prototype.push.apply(args, arguments);
+			self.emit.apply(self, args);
+		});
+	    return EventEmitter.prototype.on.apply(this, [member, listener]);
+	} else {
+	    // "Chain up" the on to event emitter? */
+	    return EventEmitter.prototype.on.apply(this, arguments);
+	}
 }
 
 
