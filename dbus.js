@@ -72,7 +72,7 @@ function DBusObject(bus, path) {
 }
 util.inherits(DBusObject, EventEmitter);
 
-DBusObject.prototype.introspect = function(callback) {
+DBusObject.prototype.introspect = function introspect(callback) {
 
 	if (this.introspection)
 		return this.introspection;
@@ -164,7 +164,7 @@ function DBusProxy(object, interfaceName) {
 			name = name.charAt(0).toLowerCase() + name.slice(1);
 
 			
-			self[name] = function() {
+			self[name] = function invoke() {
 				var message = dbus.methodCall(self.bus.destination, object.path, dbusInterface.name, method.name), callback = arguments[arguments.length - 1];
 
 				if (typeof callback !== "function")
@@ -174,7 +174,7 @@ function DBusProxy(object, interfaceName) {
 				message.arguments = Array.prototype.slice.call(arguments, 0, -1);
 
 				
-				self.bus.backend.send(message, -1, (function(callback, reply) {
+				self.bus.backend.send(message, -1, (function onReply(callback, reply) {
 
 					switch(reply.type) {
 					case dbus.DBUS_MESSAGE_TYPE_METHOD_RETURN:
