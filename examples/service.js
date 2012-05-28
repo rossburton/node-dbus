@@ -12,6 +12,9 @@ const Iface = "<interface name='com.burtonini.Test'> \
 <method name='Counter'> \
  <arg name='out' direction='out' type='s'/> \
 </method> \
+<method name='Map'> \
+ <arg name='out' direction='out' type='a{ss}'/> \
+</method> \
 </interface>";
 
 var bus = dbus.session();
@@ -26,6 +29,10 @@ function Something() {
 
     this.on("com.burtonini.Test.Counter", function (message) {
         this.reply(message, "Call number " + (++this.count));
+    });
+
+    this.on("com.burtonini.Test.Map", function (message) {
+        this.reply(message, { "Foo": "Bar" });
     });
 }
 util.inherits(Something, dbus.ExportedObject);
