@@ -464,7 +464,7 @@ public:
 	}
 
 	static bool encode(Local<Value> value, DBusMessageIter *iter, const char* sig) {
-		
+
 		DBusSignatureIter siter;
 		dbus_signature_iter_init(&siter, sig);
 
@@ -494,7 +494,6 @@ public:
 
 		case DBUS_TYPE_ARRAY: 
 			return encodeArray(type, value, iter, &siter);
-			
 		
 		case DBUS_TYPE_VARIANT: 
 			return encodeVariant(type, value, iter, &siter);
@@ -502,11 +501,11 @@ public:
 		case DBUS_TYPE_STRUCT: 
 			return encodeStruct(type, value, iter, &siter);
 		
-		default: 
-			printf("Unknown type!\n");
+		default:
+			fprintf(stderr, "%s: Unknown type '%c'\n", __PRETTY_FUNCTION__, type);
 			return false;
 		}
-		return true; 
+		return true;
 	}
 
 	static Handle<Value> getArguments(Local<String> property, const AccessorInfo& info) {
