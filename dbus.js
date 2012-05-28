@@ -45,6 +45,8 @@ DBus.prototype.object = function(path) {
 	return new DBusObject(this, path);
 }
 
+/* TODO: make DBus just a bus reference, and then add a ".name" method to bind a name */
+
 /**
  * DBusObject
  * Wraps a DBus object.
