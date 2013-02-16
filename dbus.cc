@@ -762,7 +762,7 @@ public:
 		delete io;
 	};
 
-	static void watchCallback(struct ev_loop *loop, ev_io *io, int events) {
+	static void watchCallback(ev_io *io, int events) {
 		DBusWatch *watch = static_cast<DBusWatch*>(io->data);
 		int flags = dbus_watch_get_flags(watch);
 		while (!dbus_watch_handle(watch, 
@@ -793,12 +793,12 @@ public:
 		io->data = watch;
 		dbus_watch_set_data(watch, io, freeWatchData);
 		configureWatch(watch);
-		ev_io_start(ev_default_loop(0), io);
+		ev_io_start(io);
 		return true;
 	};
 	
 	static void removeWatch(DBusWatch *watch, void *data) {
-		ev_io_stop(ev_default_loop(0), static_cast<ev_io*>(dbus_watch_get_data(watch)));
+		ev_io_stop(static_cast<ev_io*>(dbus_watch_get_data(watch)));
 	};
 	
 	static void watchToggled(DBusWatch *watch, void *data) {
